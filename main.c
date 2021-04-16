@@ -123,8 +123,13 @@ int main() {
       for(;;) {
         sem_wait((sem_t*)&shared_area_ptr_fifo1->mutex1);
         if (shared_area_ptr_fifo1->queue_size < 10 && shared_area_ptr_fifo1->turn == PRODUCER) {
-          shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->queue_size] = randInterval(MINNUMBER, MAXNUMBER); // Insere na última posição da fila
+          int x = randInterval(MINNUMBER, MAXNUMBER);
+          shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->queue_size] = x; // Insere na última posição da fila
           shared_area_ptr_fifo1->queue_size += 1; // Soma um no tamanho atual
+
+          printf("Número gerado: %d\n", x);
+          printf("Tamanho da fila: %d\n", shared_area_ptr_fifo1->queue_size);
+          printf("Turn: %d\n", shared_area_ptr_fifo1->turn);
 
           if (shared_area_ptr_fifo1->queue_size == 10) {
             printf("Fila encheu. %d\n", getpid());
@@ -138,7 +143,7 @@ int main() {
   }
 
   if(getpid() == main_process) {
-    sleep(7);
+    sleep(10);
     for (int i = 0; i < 3; i++) {
       kill(produtores[i], 9);
       printf("Processo %d foi finalizado\n", produtores[i]);
@@ -199,30 +204,32 @@ void *handleT1(void *ptr) {
   sem_post(&shared_area_ptr_fifo1->mutex2);
 
   for(;;) {
+    sem_wait(&shared_area_ptr_fifo1->mutex1);
     sem_wait(&shared_area_ptr_fifo1->mutex2);
 
-    if (ready_for_pickup == 1) {
+    if (ready_for_pickup == 1 && shared_area_ptr_fifo1->turn == CONSUMER) {
       if (shared_area_ptr_fifo1->queue_size > 0) {
         int res = shared_area_ptr_fifo1->queue[0]; // Pega o primeiro da fila
 
         for (int i = 0; i < shared_area_ptr_fifo1->queue_size - 1; i++) {
           shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
         } // reorganiza a fila após a exclusão
-        shared_area_ptr_fifo1->queue_size--;
+        shared_area_ptr_fifo1->queue_size -= 1;
         // TODO Mandar para o pipe02;
         if (shared_area_ptr_fifo1->queue_size == 0) {
           ready_for_pickup = 0;
           shared_area_ptr_fifo1->turn = PRODUCER;
         }
         printedNumbers++;
-        printf("Valor retirado da fila pela t2: %d\n", res);
-        printf("Printed numbers: %d\n", printedNumbers);
+        printf("Valor retirado da fila pela t1: %d\n", res);
+        printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
       }
+      sem_post(&shared_area_ptr_fifo1->mutex1);
       sem_post(&shared_area_ptr_fifo1->mutex2);
     } else {
-      sem_post(&shared_area_ptr_fifo1->mutex2);
       printf("PAUSOU T1, size = %d!!!\n\n\n", shared_area_ptr_fifo1->queue_size);
-      printf("PAUSOU T1!!!\n\n\n");
+      sem_post(&shared_area_ptr_fifo1->mutex1);
+      sem_post(&shared_area_ptr_fifo1->mutex2);
       pause();
     }
   }
@@ -241,16 +248,17 @@ void *handleT2(void *ptr) {
   sem_post(&shared_area_ptr_fifo1->mutex2);
 
   for(;;) {
+    sem_wait(&shared_area_ptr_fifo1->mutex1);
     sem_wait(&shared_area_ptr_fifo1->mutex2);
 
-    if (ready_for_pickup == 1) {
+    if (ready_for_pickup == 1 && shared_area_ptr_fifo1->turn == CONSUMER) {
       if (shared_area_ptr_fifo1->queue_size > 0) {
         int res = shared_area_ptr_fifo1->queue[0]; // Pega o primeiro da fila
 
         for (int i = 0; i < shared_area_ptr_fifo1->queue_size - 1; i++) {
           shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
         } // reorganiza a fila após a exclusão
-        shared_area_ptr_fifo1->queue_size--;
+        shared_area_ptr_fifo1->queue_size -= 1;
         // TODO Mandar para o pipe02;
         if (shared_area_ptr_fifo1->queue_size == 0) {
           ready_for_pickup = 0;
@@ -258,13 +266,14 @@ void *handleT2(void *ptr) {
         }
         printedNumbers++;
         printf("Valor retirado da fila pela t2: %d\n", res);
-        printf("Printed numbers: %d\n", printedNumbers);
+        printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
       }
+      sem_post(&shared_area_ptr_fifo1->mutex1);
       sem_post(&shared_area_ptr_fifo1->mutex2);
     } else {
-      sem_post(&shared_area_ptr_fifo1->mutex2);
       printf("PAUSOU T2, size = %d!!!\n\n\n", shared_area_ptr_fifo1->queue_size);
-      printf("PAUSOU T2!!!\n\n\n");
+      sem_post(&shared_area_ptr_fifo1->mutex1);
+      sem_post(&shared_area_ptr_fifo1->mutex2);
       pause();
     }
   }
