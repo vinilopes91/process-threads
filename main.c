@@ -30,14 +30,15 @@ void signalHandler(int p);
 
 int ready_for_pickup = 0;
 int printedNumbers = 0;
+int pipe01[2];
+int pipe02[2];
 
 int main() {
   pid_t produtores[3];
   pid_t process4;
+  pid_t process5;
+  pid_t process6;
   pid_t main_process = getpid();
-
-  int pipe01[2];
-  int pipe02[2];
 
   key_t fifo1 = 5678;
   struct shared_area *shared_area_ptr_fifo1;
@@ -48,6 +49,15 @@ int main() {
   struct shared_area *shared_area_ptr_fifo2;
   void *shared_memory_fifo2 = (void *)0;
   int shmid_fifo2;
+
+  if(pipe(pipe01) == -1) {
+    printf("Erro pipe01()");
+    return -1;
+  }
+  if(pipe(pipe02) == -1) {
+    printf("Erro pipe02()");
+    return -1;
+  }
 
   process4 = fork();
 
@@ -142,56 +152,51 @@ int main() {
     }
   }
 
+  if (process5 = fork() == -1) {
+    printf("Erro ao criar o processo consumidor\n");
+    exit(-1);
+  } else if (process5 == 0) {
+    int res;
+    while(1) {
+      read(pipe01[0], &res, sizeof(int));
+      printf("\n\n\nProcess 5: %d\n\n\n", res);
+    }
+    return 0;
+  }
+
+  if (process6 = fork() == -1) {
+    printf("Erro ao criar o processo consumidor\n");
+    exit(-1);
+  } else if (process6 == 0) {
+    int res;
+    while (1) {
+      read(pipe02[0], &res, sizeof(int));
+      printf("\n\n\nProcess 6: %d\n\n\n", res);
+    }
+    return 0;
+  }
+
+  printf("Main process???\n");
+
   if(getpid() == main_process) {
-    sleep(10);
+    sleep(1);
+    close(pipe01[0]);
+    close(pipe02[0]);
     for (int i = 0; i < 3; i++) {
       kill(produtores[i], 9);
       printf("Processo %d foi finalizado\n", produtores[i]);
     }
     kill(process4, 9);
     printf("Processo 4 foi finalizado\n");
+    kill(process5, 9);
+    printf("Processo 5 foi finalizado\n");
+    kill(process6, 9);
+    printf("Processo 6 foi finalizado\n");
   }
 
   return 0;
 }
 
-// void *handleT1(void *ptr) {
-//   struct shared_area *shared_area_ptr_fifo1;
-//   shared_area_ptr_fifo1 = ((struct shared_area*)ptr);
-
-//   printf("Entrou no handle T1\n");
-//   printf("T1: Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
-//   printf("T1: Turn: %d\n", shared_area_ptr_fifo1->turn);
-//   printf("T1: ready_for_pickup: %d\n", ready_for_pickup);
-
-//   while (ready_for_pickup == 1) {
-//     sem_wait(&shared_area_ptr_fifo1->mutex2);
-
-//     if (shared_area_ptr_fifo1->queue_size > 0) {
-//       int res = shared_area_ptr_fifo1->queue[0]; // Pega o primeiro da fila
-
-//       for (int i = 0; i < shared_area_ptr_fifo1->queue_size - 1; i++) {
-//         shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
-//       } // reorganiza a fila após a exclusão
-//       shared_area_ptr_fifo1->queue_size--;
-//       // TODO Mandar para o pipe01;
-//       if (shared_area_ptr_fifo1->queue_size == 0) {
-//         ready_for_pickup = 0;
-//         shared_area_ptr_fifo1->turn = PRODUCER;
-//       }
-//       printf("Valor retirado da fila pela t1: %d\n", res);
-//       printedNumbers++;
-//       printf("Printed numbers: %d\n", printedNumbers);
-//     }
-//     sem_post(&shared_area_ptr_fifo1->mutex2);
-
-//     if (ready_for_pickup == 0) {
-//       printf("PAUSOU T1!!!\n\n\n");
-//       pause();
-//     }
-//   }
-//   printf("Finalizou T1\n");
-// }
 void *handleT1(void *ptr) {
   struct shared_area *shared_area_ptr_fifo1;
   shared_area_ptr_fifo1 = ((struct shared_area*)ptr);
@@ -215,7 +220,9 @@ void *handleT1(void *ptr) {
           shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
         } // reorganiza a fila após a exclusão
         shared_area_ptr_fifo1->queue_size -= 1;
-        // TODO Mandar para o pipe02;
+
+        write(pipe01[1], &res, sizeof(int));
+
         if (shared_area_ptr_fifo1->queue_size == 0) {
           ready_for_pickup = 0;
           shared_area_ptr_fifo1->turn = PRODUCER;
@@ -259,7 +266,9 @@ void *handleT2(void *ptr) {
           shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
         } // reorganiza a fila após a exclusão
         shared_area_ptr_fifo1->queue_size -= 1;
-        // TODO Mandar para o pipe02;
+
+        write(pipe02[1], &res, sizeof(int));
+
         if (shared_area_ptr_fifo1->queue_size == 0) {
           ready_for_pickup = 0;
           shared_area_ptr_fifo1->turn = PRODUCER;
