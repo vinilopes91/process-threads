@@ -181,13 +181,8 @@ int main()
                     shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->queue_size] = x; // Insere na última posição da fila
                     shared_area_ptr_fifo1->queue_size += 1;                              // Soma um no tamanho atual
 
-                    // printf("Número gerado pelo processo %d: %d\n", getpid(), x);
-                    // printf("Tamanho da fila: %d\n", shared_area_ptr_fifo1->queue_size);
-
                     if (shared_area_ptr_fifo1->queue_size == 10)
                     {
-                        // printf("Fila encheu. %d\n", getpid());
-                        // printf("Pausando processo: %d\n", getpid());
                         shared_area_ptr_fifo1->paused_process = getpid();
                         kill(process4, SIGUSR1);
                         pause();
@@ -234,7 +229,7 @@ int main()
             if (shared_area_ptr_fifo2->queue_size == 10 && shared_area_ptr_fifo2->process_turn == 5)
             {
                 shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
-                printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
+                printf("Fila cheia mandou para P7 e altrou a thread para: %d\n\n", shared_area_ptr_fifo2->thread_turn);
                 shared_area_ptr_fifo2->process_turn = 7;
             }
             else if (shared_area_ptr_fifo2->queue_size < 10 && shared_area_ptr_fifo2->process_turn == 5)
@@ -243,11 +238,10 @@ int main()
                 shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
                 shared_area_ptr_fifo2->queue_size += 1;
                 shared_area_ptr_fifo2->process5_count += 1;
-                printf("P5 adicionou a F2: %d\n", res);
-                printf("queue size: %d\n", shared_area_ptr_fifo2->queue_size);
-                printf("process turn: 6\n");
+                printf("Novo queue size: %d\n", shared_area_ptr_fifo2->queue_size);
                 shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
                 printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
+                printf("process turn: 6\n\n");
                 shared_area_ptr_fifo2->process_turn = 6;
             }
         }
@@ -289,7 +283,7 @@ int main()
             if (shared_area_ptr_fifo2->queue_size == 10 && shared_area_ptr_fifo2->process_turn == 6)
             {
                 shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
-                printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
+                printf("Fila cheia mandou para P7 e altrou a thread para: %d\n\n", shared_area_ptr_fifo2->thread_turn);
                 shared_area_ptr_fifo2->process_turn = 7;
             }
             if (shared_area_ptr_fifo2->queue_size < 10 && shared_area_ptr_fifo2->process_turn == 6)
@@ -298,11 +292,10 @@ int main()
                 shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
                 shared_area_ptr_fifo2->queue_size += 1;
                 shared_area_ptr_fifo2->process6_count += 1;
-                printf("P6 adicionou a F2: %d\n", res);
-                printf("queue size: %d\n", shared_area_ptr_fifo2->queue_size);
-                printf("process turn: 7\n");
+                printf("Novo queue size: %d\n", shared_area_ptr_fifo2->queue_size);
                 shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
                 printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
+                printf("process turn: 7\n\n");
                 shared_area_ptr_fifo2->process_turn = 7;
             }
         }
@@ -373,17 +366,13 @@ int main()
     {
         close(pipe01[0]);
         close(pipe02[0]);
+        kill(process4, 9);
+        kill(process5, 9);
+        kill(process6, 9);
         for (int i = 0; i < 3; i++)
         {
             kill(produtores[i], 9);
-            printf("Processo %d foi finalizado\n", produtores[i]);
         }
-        kill(process4, 9);
-        printf("Processo 4 foi finalizado\n");
-        kill(process5, 9);
-        printf("Processo 5 foi finalizado\n");
-        kill(process6, 9);
-        printf("Processo 6 foi finalizado\n");
     }
 
     return 0;
@@ -412,13 +401,9 @@ void *handle_t1(void *ptr)
 
                 write(pipe01[1], &res, sizeof(int));
 
-                // printf("Valor retirado da fila pela t1: %d\n", res);
-                // printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
                 if (shared_area_ptr_fifo1->queue_size == 0)
                 {
                     ready_for_pickup = 0;
-                    // printf("PAUSOU T1, size = %d!!!\n", shared_area_ptr_fifo1->queue_size);
-                    // printf("Continuando processo: %d\n", shared_area_ptr_fifo1->paused_process);
                     kill(shared_area_ptr_fifo1->paused_process, SIGUSR2);
                 }
             }
@@ -451,13 +436,9 @@ void *handle_t2(void *ptr)
 
                 write(pipe02[1], &res, sizeof(int));
 
-                // printf("Valor retirado da fila pela t1: %d\n", res);
-                // printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
                 if (shared_area_ptr_fifo1->queue_size == 0)
                 {
                     ready_for_pickup = 0;
-                    // printf("PAUSOU T2, size = %d!!!\n", shared_area_ptr_fifo1->queue_size);
-                    // printf("Continuando processo: %d\n", shared_area_ptr_fifo1->paused_process);
                     kill(shared_area_ptr_fifo1->paused_process, SIGUSR2);
                 }
             }
@@ -501,17 +482,32 @@ void *handle_threads_p7(void *ptr)
 
             shared_area_ptr_fifo2->printed_numbers += 1;
 
-            printf("Numero aleatório gerado: %d\n", shared_area_ptr_fifo2->queue[0]);
-            printf("Números impressos: %d\n", shared_area_ptr_fifo2->printed_numbers);
+            printf("Numero impresso: %d\n", shared_area_ptr_fifo2->queue[0]);
             int random_process = rand_interval(1, 10);
             if (random_process < 6)
             {
-                printf("thread mandou para processo: 5\n");
+                printf("Novo queue size: %d\n", shared_area_ptr_fifo2->queue_size);
+                printf("thread mandou para processo: 5\n\n");
                 shared_area_ptr_fifo2->process_turn = 5;
             }
             else
             {
-                printf("thread mandou para processo: 6\n");
+                printf("Novo queue size: %d\n", shared_area_ptr_fifo2->queue_size);
+                printf("thread mandou para processo: 6\n\n");
+                shared_area_ptr_fifo2->process_turn = 6;
+            }
+        }
+        else if (shared_area_ptr_fifo2->queue_size == 0 && shared_area_ptr_fifo2->process_turn == 7)
+        {
+            int random_process = rand_interval(1, 10);
+            if (random_process < 6)
+            {
+                printf("Fila vazia, thread redirecionado para processo: 5\n\n");
+                shared_area_ptr_fifo2->process_turn = 5;
+            }
+            else
+            {
+                printf("Fila vazia, thread redirecionado para processo: 6\n\n");
                 shared_area_ptr_fifo2->process_turn = 6;
             }
         }
