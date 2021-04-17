@@ -110,14 +110,19 @@ int main()
             exit(-1);
         }
 
-        while (ready_for_pickup != 1)
-            ;
+        if (ready_for_pickup != 1) {
+            pause();
+        }
 
         pthread_create(&threads[0], NULL, handle_t1, (void *)shared_area_ptr_fifo1);
         pthread_create(&threads[1], NULL, handle_t2, (void *)shared_area_ptr_fifo1);
 
-        for (;;)
-            ;
+        for (int i = 0; i < 2; i++)
+        {
+            pthread_join(threads[i], NULL);
+        }
+
+        exit(0);
     }
 
     for (int i = 0; i < 3; i++)
