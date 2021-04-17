@@ -110,7 +110,8 @@ int main()
             exit(-1);
         }
 
-        if (ready_for_pickup != 1) {
+        if (ready_for_pickup != 1)
+        {
             pause();
         }
 
@@ -175,13 +176,13 @@ int main()
                     shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->queue_size] = x; // Insere na última posição da fila
                     shared_area_ptr_fifo1->queue_size += 1;                              // Soma um no tamanho atual
 
-                    printf("Número gerado pelo processo %d: %d\n", getpid(), x);
-                    printf("Tamanho da fila: %d\n", shared_area_ptr_fifo1->queue_size);
+                    // printf("Número gerado pelo processo %d: %d\n", getpid(), x);
+                    // printf("Tamanho da fila: %d\n", shared_area_ptr_fifo1->queue_size);
 
                     if (shared_area_ptr_fifo1->queue_size == 10)
                     {
-                        printf("Fila encheu. %d\n", getpid());
-                        printf("Pausando processo: %d\n", getpid());
+                        // printf("Fila encheu. %d\n", getpid());
+                        // printf("Pausando processo: %d\n", getpid());
                         shared_area_ptr_fifo1->paused_process = getpid();
                         kill(process4, SIGUSR1);
                         pause();
@@ -192,129 +193,167 @@ int main()
         }
     }
 
-    // process5 = fork();
+    process5 = fork();
 
-    // if (process5 == -1) {
-    //   printf("Erro ao criar o processo P5\n");
-    //   exit(-1);
-    // } else if (process5 == 0) {
-    //   int res;
+    if (process5 == -1)
+    {
+        printf("Erro ao criar o processo P5\n");
+        exit(-1);
+    }
+    else if (process5 == 0)
+    {
+        int res;
 
-    //   shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666|IPC_CREAT);
+        shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
 
-    //   if (shmid_fifo2 == -1) {
-    //     printf("shmget falhou ao criar fifo1 no processo 4\n");
-    //     exit(-1);
-    //   }
+        if (shmid_fifo2 == -1)
+        {
+            printf("shmget falhou ao criar fifo1 no processo 4\n");
+            exit(-1);
+        }
 
-    //   shared_memory_fifo2 = shmat(shmid_fifo2, (void*)0, 0);
+        shared_memory_fifo2 = shmat(shmid_fifo2, (void *)0, 0);
 
-    //   if (shared_memory_fifo2 == (void *) -1) {
-    //     printf("shmat falhou nos produtores\n");
-    //     exit(-1);
-    //   }
+        if (shared_memory_fifo2 == (void *)-1)
+        {
+            printf("shmat falhou nos produtores\n");
+            exit(-1);
+        }
 
-    //   shared_area_ptr_fifo2 = (struct shared_area_f2 *) shared_memory_fifo2;
-    //   shared_area_ptr_fifo2->queue_size = 0;
-    //   shared_area_ptr_fifo2->process_turn = 5;
-    //   shared_area_ptr_fifo2->process5_count = 0;
+        shared_area_ptr_fifo2 = (struct shared_area_f2 *)shared_memory_fifo2;
+        shared_area_ptr_fifo2->process5_count = 0;
 
-    //   while(1) {
-    //     for(;;) {
-    //       if (shared_area_ptr_fifo2->queue_size <  10 && shared_area_ptr_fifo2->process_turn == 5) {
-    //         read(pipe01[0], &res, sizeof(int));
-    //         shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
-    //         shared_area_ptr_fifo2->queue_size += 1;
-    //         shared_area_ptr_fifo2->process5_count += 1;
-    //         shared_area_ptr_fifo2->process_turn = 6;
-    //         printf("P5 adicionou a F2\n");
-    //       }
-    //     }
-    //   }
-    // }
+        for (;;)
+        {
+            if (shared_area_ptr_fifo2->queue_size == 10 && shared_area_ptr_fifo2->process_turn == 5)
+            {
+                shared_area_ptr_fifo2->process_turn = 7;
+            }
+            else if (shared_area_ptr_fifo2->queue_size < 10 && shared_area_ptr_fifo2->process_turn == 5)
+            {
+                read(pipe01[0], &res, sizeof(int));
+                shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
+                shared_area_ptr_fifo2->queue_size += 1;
+                shared_area_ptr_fifo2->process5_count += 1;
+                printf("P5 adicionou a F2: %d\n", res);
+                printf("queue size: %d\n", shared_area_ptr_fifo2->queue_size);
+                printf("process turn: 6\n");
+                shared_area_ptr_fifo2->process_turn = 6;
+            }
+        }
+    }
 
-    // process6 = fork();
+    process6 = fork();
 
-    // if (process6 == -1) {
-    //   printf("Erro ao criar o processo P6\n");
-    //   exit(-1);
-    // } else if (process6 == 0) {
-    //   int res;
+    if (process6 == -1)
+    {
+        printf("Erro ao criar o processo P6\n");
+        exit(-1);
+    }
+    else if (process6 == 0)
+    {
+        int res;
 
-    //   shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666|IPC_CREAT);
+        shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
 
-    //   if (shmid_fifo2 == -1) {
-    //     printf("shmget falhou ao criar fifo1 no processo 4\n");
-    //     exit(-1);
-    //   }
+        if (shmid_fifo2 == -1)
+        {
+            printf("shmget falhou ao criar fifo1 no processo 4\n");
+            exit(-1);
+        }
 
-    //   shared_memory_fifo2 = shmat(shmid_fifo2, (void*)0, 0);
+        shared_memory_fifo2 = shmat(shmid_fifo2, (void *)0, 0);
 
-    //   if (shared_memory_fifo2 == (void *) -1) {
-    //     printf("shmat falhou nos produtores\n");
-    //     exit(-1);
-    //   }
+        if (shared_memory_fifo2 == (void *)-1)
+        {
+            printf("shmat falhou nos produtores\n");
+            exit(-1);
+        }
 
-    //   shared_area_ptr_fifo2 = (struct shared_area_f2 *) shared_memory_fifo2;
-    //   shared_area_ptr_fifo2->process6_count = 0;
+        shared_area_ptr_fifo2 = (struct shared_area_f2 *)shared_memory_fifo2;
+        shared_area_ptr_fifo2->process6_count = 0;
 
-    //   while(1) {
-    //     for(;;) {
-    //       if (shared_area_ptr_fifo2->queue_size <  10 && shared_area_ptr_fifo2->process_turn == 6) {
-    //         read(pipe02[0], &res, sizeof(int));
-    //         shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
-    //         shared_area_ptr_fifo2->queue_size += 1;
-    //         shared_area_ptr_fifo2->process6_count += 1;
-    //         shared_area_ptr_fifo2->process_turn = 7;
-    //         printf("P6 adicionou a F2\n");
-    //       }
-    //     }
-    //   }
-    //   return 0;
-    // }
+        for (;;)
+        {
+            if (shared_area_ptr_fifo2->queue_size == 10 && shared_area_ptr_fifo2->process_turn == 6)
+            {
+                shared_area_ptr_fifo2->process_turn = 7;
+            }
+            if (shared_area_ptr_fifo2->queue_size < 10 && shared_area_ptr_fifo2->process_turn == 6)
+            {
+                read(pipe02[0], &res, sizeof(int));
+                shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
+                shared_area_ptr_fifo2->queue_size += 1;
+                shared_area_ptr_fifo2->process6_count += 1;
+                printf("P6 adicionou a F2: %d\n", res);
+                printf("queue size: %d\n", shared_area_ptr_fifo2->queue_size);
+                printf("process turn: 7\n");
+                shared_area_ptr_fifo2->process_turn = 7;
+            }
+        }
+        return 0;
+    }
 
-    // process7 = fork();
+    process7 = fork();
 
-    // if (process7 == -1) {
-    //   printf("Erro ao criar P7\n");
-    //   exit(-1);
-    // } else if (process7 == 0) {
-    //   int random_number;
-    //   pthread_t threads[3];
+    if (process7 == -1)
+    {
+        printf("Erro ao criar P7\n");
+        exit(-1);
+    }
+    else if (process7 == 0)
+    {
+        srand(time(NULL) + getpid());
+        int random_number;
+        pthread_t threads[3];
 
-    //   shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666|IPC_CREAT);
+        shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
 
-    //   if (shmid_fifo2 == -1) {
-    //     printf("shmget falhou ao criar fifo1 no processo 4\n");
-    //     exit(-1);
-    //   }
+        if (shmid_fifo2 == -1)
+        {
+            printf("shmget falhou ao criar fifo1 no processo 4\n");
+            exit(-1);
+        }
 
-    //   shared_memory_fifo2 = shmat(shmid_fifo2, (void*)0, 0);
+        shared_memory_fifo2 = shmat(shmid_fifo2, (void *)0, 0);
 
-    //   if (shared_memory_fifo2 == (void *) -1) {
-    //     printf("shmat falhou nos produtores\n");
-    //     exit(-1);
-    //   }
+        if (shared_memory_fifo2 == (void *)-1)
+        {
+            printf("shmat falhou nos produtores\n");
+            exit(-1);
+        }
 
-    //   shared_area_ptr_fifo2 = (struct shared_area_f2 *) shared_memory_fifo2;
+        shared_area_ptr_fifo2 = (struct shared_area_f2 *)shared_memory_fifo2;
 
-    //   shared_area_ptr_fifo2->printed_numbers = 0;
+        shared_area_ptr_fifo2->queue_size = 0;
+        shared_area_ptr_fifo2->printed_numbers = 0;
+        shared_area_ptr_fifo2->process_turn = 5;
 
-    //   // Criar as 3 threads
+        // Criar as 3 threads
 
-    //   while(shared_area_ptr_fifo2->printed_numbers < ITERACTIONS) {
-    //     if (shared_area_ptr_fifo2->queue_size > 0 && shared_area_ptr_fifo2->process_turn == 7) {
-    //       random_number = shared_area_ptr_fifo2->queue[0];
-    //       for (int i = 0; i < shared_area_ptr_fifo2->queue_size - 1; i++) {
-    //         shared_area_ptr_fifo2->queue[i] = shared_area_ptr_fifo2->queue[i + 1];
-    //       }
-    //       shared_area_ptr_fifo2->queue_size -= 1;
-    //       shared_area_ptr_fifo2->process_turn = 5;
-    //       printf("Numero aleatório gerado: %d\n", random_number);
-    //     }
-    //   }
-    //   exit(0);
-    // }
+        while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        {
+            if (shared_area_ptr_fifo2->queue_size > 0 && shared_area_ptr_fifo2->process_turn == 7)
+            {
+                random_number = shared_area_ptr_fifo2->queue[0];
+                shared_area_ptr_fifo2->queue_size -= 1;
+                shared_area_ptr_fifo2->printed_numbers += 1;
+                printf("Numero aleatório gerado: %d\n", random_number);
+                printf("Números impressos: %d\n", shared_area_ptr_fifo2->printed_numbers);
+                int random = rand_interval(1,10);
+                if (random > 5)
+                {
+                    printf("process turn: 5\n");
+                    shared_area_ptr_fifo2->process_turn = 5;
+                } else
+                {
+                    printf("process turn: 6\n");
+                    shared_area_ptr_fifo2->process_turn = 6;
+                }
+            }
+        }
+        exit(0);
+    }
 
     // int z;
     // wait(&z); // Esperar pelo p7 e finalizar o resto dos processos
@@ -332,12 +371,12 @@ int main()
         }
         kill(process4, 9);
         printf("Processo 4 foi finalizado\n");
-        // kill(process5, 9);
-        // printf("Processo 5 foi finalizado\n");
-        // kill(process6, 9);
-        // printf("Processo 6 foi finalizado\n");
-        // kill(process7, 9); // se o wait funcionar retirar esse kill em p7
-        // printf("Processo 7 foi finalizado\n");
+        kill(process5, 9);
+        printf("Processo 5 foi finalizado\n");
+        kill(process6, 9);
+        printf("Processo 6 foi finalizado\n");
+        kill(process7, 9); // se o wait funcionar retirar esse kill em p7
+        printf("Processo 7 foi finalizado\n");
     }
 
     return 0;
@@ -364,15 +403,15 @@ void *handle_t1(void *ptr)
                 } // reorganiza a fila após a exclusão
                 shared_area_ptr_fifo1->queue_size -= 1;
 
-                // write(pipe01[1], &res, sizeof(int));
+                write(pipe01[1], &res, sizeof(int));
 
-                printf("Valor retirado da fila pela t1: %d\n", res);
-                printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
+                // printf("Valor retirado da fila pela t1: %d\n", res);
+                // printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
                 if (shared_area_ptr_fifo1->queue_size == 0)
                 {
                     ready_for_pickup = 0;
-                    printf("PAUSOU T1, size = %d!!!\n", shared_area_ptr_fifo1->queue_size);
-                    printf("Continuando processo: %d\n", shared_area_ptr_fifo1->paused_process);
+                    // printf("PAUSOU T1, size = %d!!!\n", shared_area_ptr_fifo1->queue_size);
+                    // printf("Continuando processo: %d\n", shared_area_ptr_fifo1->paused_process);
                     kill(shared_area_ptr_fifo1->paused_process, SIGUSR2);
                 }
             }
@@ -389,7 +428,6 @@ void *handle_t2(void *ptr)
 
     for (;;)
     {
-        // sem_wait(&shared_area_ptr_fifo1->mutex1);
         sem_wait(&shared_area_ptr_fifo1->mutex2);
 
         if (ready_for_pickup == 1)
@@ -404,15 +442,15 @@ void *handle_t2(void *ptr)
                 } // reorganiza a fila após a exclusão
                 shared_area_ptr_fifo1->queue_size -= 1;
 
-                // write(pipe02[1], &res, sizeof(int));
+                write(pipe02[1], &res, sizeof(int));
 
-                printf("Valor retirado da fila pela t1: %d\n", res);
-                printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
+                // printf("Valor retirado da fila pela t1: %d\n", res);
+                // printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
                 if (shared_area_ptr_fifo1->queue_size == 0)
                 {
                     ready_for_pickup = 0;
-                    printf("PAUSOU T2, size = %d!!!\n", shared_area_ptr_fifo1->queue_size);
-                    printf("Continuando processo: %d\n", shared_area_ptr_fifo1->paused_process);
+                    // printf("PAUSOU T2, size = %d!!!\n", shared_area_ptr_fifo1->queue_size);
+                    // printf("Continuando processo: %d\n", shared_area_ptr_fifo1->paused_process);
                     kill(shared_area_ptr_fifo1->paused_process, SIGUSR2);
                 }
             }
@@ -469,13 +507,13 @@ void *handle_t2(void *ptr)
 
 void signalHandler(int p)
 {
-    printf("Threads consumindo!\n\n");
+    // printf("Threads consumindo!\n\n");
     ready_for_pickup = 1;
 }
 
 void signalHandler2(int p)
 {
-    printf("Produtores retornando..\n\n");
+    // printf("Produtores retornando..\n\n");
 }
 
 int rand_interval(int a, int b)
