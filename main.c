@@ -28,6 +28,10 @@ struct shared_area_f2
     int queue_size;
     int queue[QUEUESIZE];
     int process_turn;
+    pthread_t threads_ids[3];
+    int thread_turn;
+    int bigger;
+    int smaller;
     int process5_count;
     int process6_count;
     int printed_numbers;
@@ -35,9 +39,10 @@ struct shared_area_f2
 
 void *handle_t1(void *ptr);
 void *handle_t2(void *ptr);
+void *handle_threads_p7(void *ptr);
 int rand_interval(int a, int b);
-void signalHandler(int p);
-void signalHandler2(int p);
+void signal_handler_consumidores(int p);
+void signal_handler_produtores(int p);
 
 int ready_for_pickup = 0;
 int printedNumbers = 0;
@@ -83,7 +88,7 @@ int main()
     }
     else if (process4 == 0)
     {
-        signal(SIGUSR1, signalHandler);
+        signal(SIGUSR1, signal_handler_consumidores);
         pthread_t threads[2];
 
         shmid_fifo1 = shmget(fifo1, MEM_SZ, 0666 | IPC_CREAT);
@@ -137,7 +142,7 @@ int main()
         }
         if (produtores[i] == 0)
         {
-            signal(SIGUSR2, signalHandler2);
+            signal(SIGUSR2, signal_handler_produtores);
             srand(time(NULL) + getpid());
             shmid_fifo1 = shmget(fifo1, MEM_SZ, 0666 | IPC_CREAT);
 
@@ -203,6 +208,7 @@ int main()
     else if (process5 == 0)
     {
         int res;
+        srand(time(NULL));
 
         shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
 
@@ -227,6 +233,8 @@ int main()
         {
             if (shared_area_ptr_fifo2->queue_size == 10 && shared_area_ptr_fifo2->process_turn == 5)
             {
+                shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
+                printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
                 shared_area_ptr_fifo2->process_turn = 7;
             }
             else if (shared_area_ptr_fifo2->queue_size < 10 && shared_area_ptr_fifo2->process_turn == 5)
@@ -238,6 +246,8 @@ int main()
                 printf("P5 adicionou a F2: %d\n", res);
                 printf("queue size: %d\n", shared_area_ptr_fifo2->queue_size);
                 printf("process turn: 6\n");
+                shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
+                printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
                 shared_area_ptr_fifo2->process_turn = 6;
             }
         }
@@ -253,6 +263,7 @@ int main()
     else if (process6 == 0)
     {
         int res;
+        srand(time(NULL));
 
         shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
 
@@ -277,6 +288,8 @@ int main()
         {
             if (shared_area_ptr_fifo2->queue_size == 10 && shared_area_ptr_fifo2->process_turn == 6)
             {
+                shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
+                printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
                 shared_area_ptr_fifo2->process_turn = 7;
             }
             if (shared_area_ptr_fifo2->queue_size < 10 && shared_area_ptr_fifo2->process_turn == 6)
@@ -288,6 +301,8 @@ int main()
                 printf("P6 adicionou a F2: %d\n", res);
                 printf("queue size: %d\n", shared_area_ptr_fifo2->queue_size);
                 printf("process turn: 7\n");
+                shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
+                printf("thread turn: %d\n", shared_area_ptr_fifo2->thread_turn);
                 shared_area_ptr_fifo2->process_turn = 7;
             }
         }
@@ -303,7 +318,7 @@ int main()
     }
     else if (process7 == 0)
     {
-        srand(time(NULL) + getpid());
+        srand(time(NULL));
         int random_number;
         pthread_t threads[3];
 
@@ -329,39 +344,33 @@ int main()
         shared_area_ptr_fifo2->printed_numbers = 0;
         shared_area_ptr_fifo2->process_turn = 5;
 
-        // Criar as 3 threads
-
-        while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        for (int i = 0; i < 3; i++)
         {
-            if (shared_area_ptr_fifo2->queue_size > 0 && shared_area_ptr_fifo2->process_turn == 7)
-            {
-                random_number = shared_area_ptr_fifo2->queue[0];
-                shared_area_ptr_fifo2->queue_size -= 1;
-                shared_area_ptr_fifo2->printed_numbers += 1;
-                printf("Numero aleatório gerado: %d\n", random_number);
-                printf("Números impressos: %d\n", shared_area_ptr_fifo2->printed_numbers);
-                int random = rand_interval(1,10);
-                if (random > 5)
-                {
-                    printf("process turn: 5\n");
-                    shared_area_ptr_fifo2->process_turn = 5;
-                } else
-                {
-                    printf("process turn: 6\n");
-                    shared_area_ptr_fifo2->process_turn = 6;
-                }
-            }
+            pthread_create(&threads[i], NULL, handle_threads_p7, (void *)shared_area_ptr_fifo2);
         }
+
+        for (int i = 0; i < 3; i++)
+        {
+            shared_area_ptr_fifo2->threads_ids[i] = threads[i];
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            pthread_join(threads[i], NULL);
+        }
+
+        printf("Maior valor: %d\n", shared_area_ptr_fifo2->bigger);
+        printf("Menor valor: %d\n", shared_area_ptr_fifo2->smaller);
+        printf("Valores processados por P5: %d\n", shared_area_ptr_fifo2->process5_count);
+        printf("Valores processados por P6: %d\n", shared_area_ptr_fifo2->process6_count);
+
         exit(0);
     }
 
-    // int z;
-    // wait(&z); // Esperar pelo p7 e finalizar o resto dos processos
+    waitpid(process7, NULL, WUNTRACED);
 
     if (getpid() == main_process)
     {
-        sleep(5);
-        // printf("Processo P7 finalizado com status: %d\n", z);
         close(pipe01[0]);
         close(pipe02[0]);
         for (int i = 0; i < 3; i++)
@@ -375,8 +384,6 @@ int main()
         printf("Processo 5 foi finalizado\n");
         kill(process6, 9);
         printf("Processo 6 foi finalizado\n");
-        kill(process7, 9); // se o wait funcionar retirar esse kill em p7
-        printf("Processo 7 foi finalizado\n");
     }
 
     return 0;
@@ -460,61 +467,64 @@ void *handle_t2(void *ptr)
     printf("Finalizou T2\n");
 }
 
-// void *handleThreadsP7(void *ptr) {
-//   struct shared_area_f2 *shared_area_ptr_fifo2;
-//   shared_area_ptr_fifo2 = ((struct shared_area_f2*)ptr);
-
-//   // sem_wait(&shared_area_ptr_fifo1->mutex2);
-//   // printf("Entrou no handle T2\n");
-//   // printf("T2: Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
-//   // printf("T2: Turn: %d\n", shared_area_ptr_fifo1->turn);
-//   // printf("T2: ready_for_pickup: %d\n", ready_for_pickup);
-//   // sem_post(&shared_area_ptr_fifo1->mutex2);
-
-//   for(;;) {
-//     sem_wait(&shared_area_ptr_fifo1->mutex1);
-//     sem_wait(&shared_area_ptr_fifo1->mutex2);
-
-//     if (ready_for_pickup == 1 && shared_area_ptr_fifo1->turn == CONSUMER) {
-//       if (shared_area_ptr_fifo1->queue_size > 0) {
-//         int res = shared_area_ptr_fifo1->queue[0]; // Pega o primeiro da fila
-
-//         for (int i = 0; i < shared_area_ptr_fifo1->queue_size - 1; i++) {
-//           shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
-//         } // reorganiza a fila após a exclusão
-//         shared_area_ptr_fifo1->queue_size -= 1;
-
-//         write(pipe02[1], &res, sizeof(int));
-
-//         if (shared_area_ptr_fifo1->queue_size == 0) {
-//           ready_for_pickup = 0;
-//           shared_area_ptr_fifo1->turn = PRODUCER;
-//         }
-//         // printf("Valor retirado da fila pela t2: %d\n", res);
-//         // printf("Queue size: %d\n", shared_area_ptr_fifo1->queue_size);
-//       }
-//       sem_post(&shared_area_ptr_fifo1->mutex1);
-//       sem_post(&shared_area_ptr_fifo1->mutex2);
-//     } else {
-//       // printf("PAUSOU T2, size = %d!!!\n\n\n", shared_area_ptr_fifo1->queue_size);
-//       sem_post(&shared_area_ptr_fifo1->mutex1);
-//       sem_post(&shared_area_ptr_fifo1->mutex2);
-//       pause();
-//     }
-//   }
-//   printf("Finalizou T2\n");
-// }
-
-void signalHandler(int p)
+void *handle_threads_p7(void *ptr)
 {
-    // printf("Threads consumindo!\n\n");
+    struct shared_area_f2 *shared_area_ptr_fifo2;
+    shared_area_ptr_fifo2 = ((struct shared_area_f2 *)ptr);
+
+    while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+    {
+        if (shared_area_ptr_fifo2->queue_size > 0 && shared_area_ptr_fifo2->process_turn == 7 && shared_area_ptr_fifo2->threads_ids[shared_area_ptr_fifo2->thread_turn] == pthread_self())
+        {
+            int random_number = shared_area_ptr_fifo2->queue[0];
+
+            for (int i = 0; i < shared_area_ptr_fifo2->queue_size - 1; i++)
+            {
+                shared_area_ptr_fifo2->queue[i] = shared_area_ptr_fifo2->queue[i + 1];
+            }
+            shared_area_ptr_fifo2->queue_size -= 1;
+
+            if (shared_area_ptr_fifo2->printed_numbers == 0)
+            {
+                shared_area_ptr_fifo2->bigger = random_number;
+                shared_area_ptr_fifo2->smaller = random_number;
+            }
+
+            if (random_number > shared_area_ptr_fifo2->bigger)
+            {
+                shared_area_ptr_fifo2->bigger = random_number;
+            }
+            if (random_number < shared_area_ptr_fifo2->smaller)
+            {
+                shared_area_ptr_fifo2->smaller = random_number;
+            }
+
+            shared_area_ptr_fifo2->printed_numbers += 1;
+
+            printf("Numero aleatório gerado: %d\n", shared_area_ptr_fifo2->queue[0]);
+            printf("Números impressos: %d\n", shared_area_ptr_fifo2->printed_numbers);
+            int random_process = rand_interval(1, 10);
+            if (random_process < 6)
+            {
+                printf("thread mandou para processo: 5\n");
+                shared_area_ptr_fifo2->process_turn = 5;
+            }
+            else
+            {
+                printf("thread mandou para processo: 6\n");
+                shared_area_ptr_fifo2->process_turn = 6;
+            }
+        }
+    }
+    pthread_exit(NULL);
+}
+
+void signal_handler_consumidores(int p)
+{
     ready_for_pickup = 1;
 }
 
-void signalHandler2(int p)
-{
-    // printf("Produtores retornando..\n\n");
-}
+void signal_handler_produtores(int p) {}
 
 int rand_interval(int a, int b)
 {
