@@ -1,4 +1,4 @@
-TARGET=main
+TARGET=main.exe
 CC=gcc
 DEBUG=-g
 OPT=-O0

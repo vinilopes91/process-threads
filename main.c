@@ -13,11 +13,10 @@
 #define MAXNUMBER 1000
 #define ITERACTIONS 10000
 #define QUEUESIZE 10
-#define MEM_SZ 4096
 
 struct shared_area
 {
-    sem_t mutex1; // Para os produtores escreverem
+    sem_t mutex1; // Para sinalizar entre os processos p1, p2, p3 e p4
     sem_t mutex2; // Para regular retirada da fila entre t1 e t2 de P4
     int ready_for_produce;
     int queue_size;
@@ -33,8 +32,8 @@ struct shared_area_f2
     int rear;
     int front;
     int process_turn;
-    pthread_t threads_ids[3];
     int thread_turn;
+    pthread_t threads_ids[3];
     int bigger;
     int smaller;
     int process5_count;
@@ -99,7 +98,7 @@ int main()
         signal(SIGUSR1, signal_handler_consumers);
         pthread_t threads[2];
 
-        shmid_fifo1 = shmget(fifo1, MEM_SZ, 0666 | IPC_CREAT);
+        shmid_fifo1 = shmget(fifo1, sizeof(struct shared_area), 0666 | IPC_CREAT);
 
         if (shmid_fifo1 == -1)
         {
@@ -140,7 +139,7 @@ int main()
         if (produtores[i] == 0)
         {
             srand(time(NULL) + getpid());
-            shmid_fifo1 = shmget(fifo1, MEM_SZ, 0666 | IPC_CREAT);
+            shmid_fifo1 = shmget(fifo1, sizeof(struct shared_area), 0666 | IPC_CREAT);
 
             if (shmid_fifo1 == -1)
             {
@@ -212,7 +211,7 @@ int main()
         int res;
         srand(time(NULL));
 
-        shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
+        shmid_fifo2 = shmget(fifo2, sizeof(struct shared_area_f2), 0666 | IPC_CREAT);
 
         if (shmid_fifo2 == -1)
         {
@@ -266,7 +265,7 @@ int main()
         int res;
         srand(time(NULL));
 
-        shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
+        shmid_fifo2 = shmget(fifo2, sizeof(struct shared_area_f2), 0666 | IPC_CREAT);
 
         if (shmid_fifo2 == -1)
         {
@@ -321,7 +320,7 @@ int main()
         srand(time(NULL));
         pthread_t threads[3];
 
-        shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
+        shmid_fifo2 = shmget(fifo2, sizeof(struct shared_area_f2), 0666 | IPC_CREAT);
 
         if (shmid_fifo2 == -1)
         {
@@ -368,7 +367,7 @@ int main()
             kill(produtores[i], 9);
         }
 
-        printf("\n\n==================================\n");
+        printf("\n\n==========================================\n");
         printf("Maior valor: %d\n", shared_area_ptr_fifo2->bigger);
         printf("Menor valor: %d\n", shared_area_ptr_fifo2->smaller);
         printf("Moda: %d\n", moda(printedNumbers, ITERACTIONS));
@@ -385,7 +384,7 @@ int main()
 
     execution_time = clock() - execution_time;
     printf("Tempo de execucao: %lf segundos\n", ((double)execution_time) / CLOCKS_PER_SEC);
-    printf("==================================\n");
+    printf("==========================================\n");
 
     return 0;
 }
