@@ -376,6 +376,8 @@ int main()
     execution_time = clock() - execution_time;
     printf("Tempo de execucao: %lf segundos\n", ((double)execution_time) / CLOCKS_PER_SEC);
     printf("==================================\n");
+    int teste[] = {1,2,2,1,1,1,1,2};
+    printf("Moda teste: %d\n", moda(teste, 8));
 
     return 0;
 }
@@ -543,7 +545,7 @@ int moda(int arr[], int size)
     for (int i = 0; i < (size - 1); i++)
     {
         temp = arr[i]; // Guarda o elemento que esta iterando
-        tempCount = 0;
+        tempCount = 1;
         for (int j = 1; j < size; j++) // Varre o array em busca do elemento temp
         {
             if (temp == arr[j])
