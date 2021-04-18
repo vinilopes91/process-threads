@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/shm.h>
@@ -52,6 +53,7 @@ int pipe02[2];
 
 int main()
 {
+    clock_t execution_time;
     pid_t produtores[3];
     pid_t process4;
     pid_t process5;
@@ -68,6 +70,8 @@ int main()
     struct shared_area_f2 *shared_area_ptr_fifo2;
     void *shared_memory_fifo2 = (void *)0;
     int shmid_fifo2;
+
+    execution_time = clock();
 
     if (pipe(pipe01) == -1)
     {
@@ -367,7 +371,6 @@ int main()
         printf("Moda: %d\n", moda(printedNumbers, ITERACTIONS));
         printf("Valores processados por P5: %d\n", shared_area_ptr_fifo2->process5_count);
         printf("Valores processados por P6: %d\n", shared_area_ptr_fifo2->process6_count);
-        printf("==================================\n");
 
         exit(0);
     }
@@ -377,7 +380,9 @@ int main()
         wait(NULL);
     }
 
-    // waitpid(process7, NULL, WUNTRACED);
+    execution_time = clock() - execution_time;
+    printf("Tempo de execucao: %lf segundos\n", ((double)execution_time) / CLOCKS_PER_SEC);
+    printf("==================================\n");
 
     return 0;
 }
