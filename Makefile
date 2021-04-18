@@ -5,6 +5,7 @@ OPT=-O0
 WARN=-Wall
 PTHREAD=-pthread
 FLAGS=$(DEBUG) $(PTHREAD) $(OPT) $(WARN)
+SOURCE_CODE=main.c
 
 install:
-	$(CC) $(FLAGS) main.c -o $(TARGET)
+	$(CC) $(FLAGS) $(SOURCE_CODE) -o $(TARGET)
