@@ -21,6 +21,8 @@ struct shared_area
     sem_t mutex2; // Para regular retirada da fila entre t1 e t2 de P4
     int ready_for_produce;
     int queue_size;
+    int rear;
+    int front;
     int queue[QUEUESIZE];
 };
 
@@ -28,6 +30,8 @@ struct shared_area_f2
 {
     int queue_size;
     int queue[QUEUESIZE];
+    int rear;
+    int front;
     int process_turn;
     pthread_t threads_ids[3];
     int thread_turn;
@@ -168,19 +172,23 @@ int main()
                 }
                 sem_wait((sem_t *)&shared_area_ptr_fifo1->mutex1);
                 shared_area_ptr_fifo1->queue_size = 0;
+                shared_area_ptr_fifo1->front = 0;
+                shared_area_ptr_fifo1->rear = 0;
                 shared_area_ptr_fifo1->ready_for_produce = 1;
                 sem_post((sem_t *)&shared_area_ptr_fifo1->mutex1);
             }
 
             for (;;)
             {
-                if (process4 == 0) continue;
+                if (process4 == 0)
+                    continue;
                 sem_wait((sem_t *)&shared_area_ptr_fifo1->mutex1);
                 if (shared_area_ptr_fifo1->queue_size < 10 && shared_area_ptr_fifo1->ready_for_produce == 1)
                 {
                     int x = rand_interval(MINNUMBER, MAXNUMBER);
-                    shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->queue_size] = x;
+                    shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->rear] = x; // Adiciona na traseira da fila
                     shared_area_ptr_fifo1->queue_size += 1;
+                    shared_area_ptr_fifo1->rear = (shared_area_ptr_fifo1->rear + 1) % QUEUESIZE;
                     if (shared_area_ptr_fifo1->queue_size == 10)
                     {
                         shared_area_ptr_fifo1->ready_for_produce = 0;
@@ -235,8 +243,9 @@ int main()
                 else if (shared_area_ptr_fifo2->queue_size < 10)
                 {
                     read(pipe01[0], &res, sizeof(int));
-                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
-                    shared_area_ptr_fifo2->queue_size += 1;
+                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res; // Adiciona na traseira da fila
+                    shared_area_ptr_fifo2->queue_size += 1; // Soma ao tamanho atual da fila
+                    shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
                     shared_area_ptr_fifo2->process5_count += 1;
                     shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
                     shared_area_ptr_fifo2->process_turn = 6;
@@ -288,8 +297,9 @@ int main()
                 if (shared_area_ptr_fifo2->queue_size < 10)
                 {
                     read(pipe02[0], &res, sizeof(int));
-                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->queue_size] = res;
-                    shared_area_ptr_fifo2->queue_size += 1;
+                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res; // Adiciona na traseira da fila
+                    shared_area_ptr_fifo2->queue_size += 1; // Soma ao tamanho atual da fila
+                    shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
                     shared_area_ptr_fifo2->process6_count += 1;
                     shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
                     shared_area_ptr_fifo2->process_turn = 7;
@@ -393,13 +403,10 @@ void *handle_t1(void *ptr)
             sem_wait(&shared_area_ptr_fifo1->mutex1);
             if (shared_area_ptr_fifo1->queue_size > 0)
             {
-                int res = shared_area_ptr_fifo1->queue[0]; // Pega o primeiro da fila
+                int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
 
-                for (int i = 0; i < shared_area_ptr_fifo1->queue_size - 1; i++)
-                {
-                    shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
-                } // reorganiza a fila após a exclusão
-                shared_area_ptr_fifo1->queue_size -= 1;
+                shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
+                shared_area_ptr_fifo1->queue_size -= 1; // Diminui o tamanho atual da fila
 
                 write(pipe01[1], &res, sizeof(int));
 
@@ -428,13 +435,10 @@ void *handle_t2(void *ptr)
             sem_wait(&shared_area_ptr_fifo1->mutex1);
             if (shared_area_ptr_fifo1->queue_size > 0)
             {
-                int res = shared_area_ptr_fifo1->queue[0]; // Pega o primeiro da fila
+                int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
 
-                for (int i = 0; i < shared_area_ptr_fifo1->queue_size - 1; i++)
-                {
-                    shared_area_ptr_fifo1->queue[i] = shared_area_ptr_fifo1->queue[i + 1];
-                } // reorganiza a fila após a exclusão
-                shared_area_ptr_fifo1->queue_size -= 1;
+                shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
+                shared_area_ptr_fifo1->queue_size -= 1; // Diminui o tamanho atual da fila
 
                 write(pipe02[1], &res, sizeof(int));
 
@@ -461,15 +465,12 @@ void *handle_threads_p7(void *ptr)
         {
             if (shared_area_ptr_fifo2->queue_size > 0 && shared_area_ptr_fifo2->threads_ids[shared_area_ptr_fifo2->thread_turn] == pthread_self())
             {
-                int random_number = shared_area_ptr_fifo2->queue[0];
+                int random_number = shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->front]; // Pega o elemento no começo da fila
 
-                for (int i = 0; i < shared_area_ptr_fifo2->queue_size - 1; i++)
-                {
-                    shared_area_ptr_fifo2->queue[i] = shared_area_ptr_fifo2->queue[i + 1];
-                }
-                shared_area_ptr_fifo2->queue_size -= 1;
+                shared_area_ptr_fifo2->front = (shared_area_ptr_fifo2->front + 1) % QUEUESIZE; // Aponta para o novo primeiro elemento da fila
+                shared_area_ptr_fifo2->queue_size -= 1; // Diminui um no tamanho atual da fila
 
-                if (shared_area_ptr_fifo2->printed_numbers == 0)
+                if (shared_area_ptr_fifo2->printed_numbers == 0) // Seta o primeiro elemento como maior e menor para comparar entre os outros elementos impressos.
                 {
                     shared_area_ptr_fifo2->bigger = random_number;
                     shared_area_ptr_fifo2->smaller = random_number;
