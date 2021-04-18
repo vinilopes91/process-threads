@@ -46,7 +46,7 @@ void signal_handler_produtores(int p);
 int moda(int arr[], int size);
 
 int ready_for_pickup = 0;
-int printedNumbers = 0;
+int printedNumbers[ITERACTIONS];
 int pipe01[2];
 int pipe02[2];
 
@@ -364,7 +364,7 @@ int main()
         printf("\n\n==================================\n");
         printf("Maior valor: %d\n", shared_area_ptr_fifo2->bigger);
         printf("Menor valor: %d\n", shared_area_ptr_fifo2->smaller);
-        // printf("Moda teste: %d\n", moda(shared_area_ptr_fifo2->final_numbers, ITERACTIONS));
+        printf("Moda: %d\n", moda(printedNumbers, ITERACTIONS));
         printf("Valores processados por P5: %d\n", shared_area_ptr_fifo2->process5_count);
         printf("Valores processados por P6: %d\n", shared_area_ptr_fifo2->process6_count);
         printf("==================================\n");
@@ -372,7 +372,12 @@ int main()
         exit(0);
     }
 
-    waitpid(process7, NULL, WUNTRACED);
+    for (int i = 0; i < 7; i++)
+    {
+        wait(NULL);
+    }
+
+    // waitpid(process7, NULL, WUNTRACED);
 
     return 0;
 }
@@ -478,6 +483,8 @@ void *handle_threads_p7(void *ptr)
                 {
                     shared_area_ptr_fifo2->smaller = random_number;
                 }
+
+                printedNumbers[shared_area_ptr_fifo2->printed_numbers] = random_number; // Para calculo posterior da moda.
 
                 printf("Numero impresso: %d\n", random_number);
                 fflush(stdout);
