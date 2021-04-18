@@ -10,7 +10,7 @@
 				"-pthread",
 				"${file}",
 				"-o",
-				"${fileDirname}/bin/${fileBasenameNoExtension}"
+				"${workspaceFolder}/${fileBasenameNoExtension}"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"

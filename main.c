@@ -59,7 +59,6 @@ int main()
     pid_t process5;
     pid_t process6;
     pid_t process7;
-    pid_t main_process = getpid();
 
     key_t fifo1 = 5678;
     struct shared_area *shared_area_ptr_fifo1;
@@ -114,12 +113,6 @@ int main()
 
         shared_area_ptr_fifo1 = (struct shared_area *)shared_memory_fifo1;
 
-        if (sem_init((sem_t *)&shared_area_ptr_fifo1->mutex2, 0, 1) != 0)
-        {
-            printf("sem_init falhou (FIFO 1, SEMAFORO 2)\n");
-            exit(-1);
-        }
-
         if (ready_for_pickup != 1)
         {
             pause();
@@ -171,8 +164,13 @@ int main()
             {
                 shared_area_ptr_fifo1->queue_size = 0;
                 if (sem_init((sem_t *)&shared_area_ptr_fifo1->mutex1, 1, 1) != 0)
-                { // Cria um semáforo pra ser utilizado entre processos (p1, p2, p3) (1)
+                { // Cria um semáforo pra ser utilizado entre processos
                     printf("sem_init falhou (FIFO 1, SEMAFORO 1)\n");
+                    exit(-1);
+                }
+                if (sem_init((sem_t *)&shared_area_ptr_fifo1->mutex2, 0, 1) != 0)
+                {
+                    printf("sem_init falhou (FIFO 1, SEMAFORO 2)\n");
                     exit(-1);
                 }
             }
@@ -310,12 +308,11 @@ int main()
     if (process7 == -1)
     {
         printf("Erro ao criar P7\n");
-        exit(-1);
+        exit(-1); 
     }
     else if (process7 == 0)
     {
         srand(time(NULL));
-        int random_number;
         pthread_t threads[3];
 
         shmid_fifo2 = shmget(fifo2, MEM_SZ, 0666 | IPC_CREAT);
