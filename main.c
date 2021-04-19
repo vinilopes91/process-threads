@@ -16,7 +16,7 @@
 
 struct shared_area
 {
-    sem_t mutex1; // Para sinalizar entre os processos p1, p2, p3 e p4
+    sem_t mutex1; // Para sinalizar entre os processos p1, p2, p3
     sem_t mutex2; // Para regular retirada da fila entre t1 e t2 de P4
     int ready_for_produce;
     int queue_size;
@@ -75,6 +75,67 @@ int main()
 
     execution_time = clock();
 
+    shmid_fifo1 = shmget(fifo1, sizeof(struct shared_area), 0666 | IPC_CREAT);
+
+    if (shmid_fifo1 == -1)
+    {
+        printf("shmget falhou ao criar fifo1 no processo 4\n");
+        exit(-1);
+    }
+
+    shared_memory_fifo1 = shmat(shmid_fifo1, (void *)0, 0);
+
+    if (shared_memory_fifo1 == (void *)-1)
+    {
+        printf("shmat falhou na fifo1\n");
+        exit(-1);
+    }
+
+    shared_area_ptr_fifo1 = (struct shared_area *)shared_memory_fifo1;
+
+    if (sem_init((sem_t *)&shared_area_ptr_fifo1->mutex1, 1, 1) != 0)
+    { // Semáforo dos processos
+        printf("sem_init falhou (FIFO 1, SEMAFORO 1)\n");
+        exit(-1);
+    }
+    if (sem_init((sem_t *)&shared_area_ptr_fifo1->mutex2, 0, 1) != 0)
+    { // Semáforo das threads
+        printf("sem_init falhou (FIFO 1, SEMAFORO 2)\n");
+        exit(-1);
+    }
+
+    shared_area_ptr_fifo1->queue_size = 0;
+    shared_area_ptr_fifo1->front = 0;
+    shared_area_ptr_fifo1->rear = 0;
+    shared_area_ptr_fifo1->ready_for_produce = 1;
+
+    /* Fim da inicialização de FIFO1 */
+
+    shmid_fifo2 = shmget(fifo2, sizeof(struct shared_area_f2), 0666 | IPC_CREAT);
+
+    if (shmid_fifo2 == -1)
+    {
+        printf("shmget falhou ao criar fifo2 no processo 5\n");
+        exit(-1);
+    }
+
+    shared_memory_fifo2 = shmat(shmid_fifo2, (void *)0, 0);
+
+    if (shared_memory_fifo2 == (void *)-1)
+    {
+        printf("shmat falhou nos produtores\n");
+        exit(-1);
+    }
+
+    shared_area_ptr_fifo2 = (struct shared_area_f2 *)shared_memory_fifo2;
+    shared_area_ptr_fifo2->process5_count = 0;
+    shared_area_ptr_fifo2->process6_count = 0;
+    shared_area_ptr_fifo2->queue_size = 0;
+    shared_area_ptr_fifo2->printed_numbers = 0;
+    shared_area_ptr_fifo2->process_turn = 5;
+
+    /* Fim da inicialização de FIFO2 */
+
     if (pipe(pipe01) == -1)
     {
         printf("Erro pipe01()");
@@ -85,6 +146,8 @@ int main()
         printf("Erro pipe02()");
         return -1;
     }
+
+    /* Fim da inicialização dos pipes */
 
     process4 = fork();
 
@@ -97,24 +160,6 @@ int main()
     {
         signal(SIGUSR1, signal_handler_consumers);
         pthread_t threads[2];
-
-        shmid_fifo1 = shmget(fifo1, sizeof(struct shared_area), 0666 | IPC_CREAT);
-
-        if (shmid_fifo1 == -1)
-        {
-            printf("shmget falhou ao criar fifo1 no processo 4\n");
-            exit(-1);
-        }
-
-        shared_memory_fifo1 = shmat(shmid_fifo1, (void *)0, 0);
-
-        if (shared_memory_fifo1 == (void *)-1)
-        {
-            printf("shmat falhou nos produtores\n");
-            exit(-1);
-        }
-
-        shared_area_ptr_fifo1 = (struct shared_area *)shared_memory_fifo1;
 
         pthread_create(&threads[0], NULL, handle_t1, (void *)shared_area_ptr_fifo1);
         pthread_create(&threads[1], NULL, handle_t2, (void *)shared_area_ptr_fifo1);
@@ -139,43 +184,6 @@ int main()
         if (produtores[i] == 0)
         {
             srand(time(NULL) + getpid());
-            shmid_fifo1 = shmget(fifo1, sizeof(struct shared_area), 0666 | IPC_CREAT);
-
-            if (shmid_fifo1 == -1)
-            {
-                printf("shmget falhou\n");
-                exit(-1);
-            }
-
-            shared_memory_fifo1 = shmat(shmid_fifo1, (void *)0, 0);
-
-            if (shared_memory_fifo1 == (void *)-1)
-            {
-                printf("shmat falhou nos produtores\n");
-                exit(-1);
-            }
-
-            shared_area_ptr_fifo1 = (struct shared_area *)shared_memory_fifo1;
-
-            if (i == 0)
-            {
-                if (sem_init((sem_t *)&shared_area_ptr_fifo1->mutex1, 1, 1) != 0)
-                { // Semáforo dos processos
-                    printf("sem_init falhou (FIFO 1, SEMAFORO 1)\n");
-                    exit(-1);
-                }
-                if (sem_init((sem_t *)&shared_area_ptr_fifo1->mutex2, 0, 1) != 0)
-                { // Semáforo das threads
-                    printf("sem_init falhou (FIFO 1, SEMAFORO 2)\n");
-                    exit(-1);
-                }
-                sem_wait((sem_t *)&shared_area_ptr_fifo1->mutex1);
-                shared_area_ptr_fifo1->queue_size = 0;
-                shared_area_ptr_fifo1->front = 0;
-                shared_area_ptr_fifo1->rear = 0;
-                shared_area_ptr_fifo1->ready_for_produce = 1;
-                sem_post((sem_t *)&shared_area_ptr_fifo1->mutex1);
-            }
 
             for (;;)
             {
@@ -211,25 +219,6 @@ int main()
         int res;
         srand(time(NULL));
 
-        shmid_fifo2 = shmget(fifo2, sizeof(struct shared_area_f2), 0666 | IPC_CREAT);
-
-        if (shmid_fifo2 == -1)
-        {
-            printf("shmget falhou ao criar fifo2 no processo 5\n");
-            exit(-1);
-        }
-
-        shared_memory_fifo2 = shmat(shmid_fifo2, (void *)0, 0);
-
-        if (shared_memory_fifo2 == (void *)-1)
-        {
-            printf("shmat falhou nos produtores\n");
-            exit(-1);
-        }
-
-        shared_area_ptr_fifo2 = (struct shared_area_f2 *)shared_memory_fifo2;
-        shared_area_ptr_fifo2->process5_count = 0;
-
         for (;;)
         {
             if (shared_area_ptr_fifo2->process_turn == 5)
@@ -264,25 +253,6 @@ int main()
     {
         int res;
         srand(time(NULL));
-
-        shmid_fifo2 = shmget(fifo2, sizeof(struct shared_area_f2), 0666 | IPC_CREAT);
-
-        if (shmid_fifo2 == -1)
-        {
-            printf("shmget falhou ao criar fifo2 no processo 6\n");
-            exit(-1);
-        }
-
-        shared_memory_fifo2 = shmat(shmid_fifo2, (void *)0, 0);
-
-        if (shared_memory_fifo2 == (void *)-1)
-        {
-            printf("shmat falhou nos produtores\n");
-            exit(-1);
-        }
-
-        shared_area_ptr_fifo2 = (struct shared_area_f2 *)shared_memory_fifo2;
-        shared_area_ptr_fifo2->process6_count = 0;
 
         for (;;)
         {
@@ -320,28 +290,6 @@ int main()
         srand(time(NULL));
         pthread_t threads[3];
 
-        shmid_fifo2 = shmget(fifo2, sizeof(struct shared_area_f2), 0666 | IPC_CREAT);
-
-        if (shmid_fifo2 == -1)
-        {
-            printf("shmget falhou ao criar fifo2 no processo 7\n");
-            exit(-1);
-        }
-
-        shared_memory_fifo2 = shmat(shmid_fifo2, (void *)0, 0);
-
-        if (shared_memory_fifo2 == (void *)-1)
-        {
-            printf("shmat falhou nos produtores\n");
-            exit(-1);
-        }
-
-        shared_area_ptr_fifo2 = (struct shared_area_f2 *)shared_memory_fifo2;
-
-        shared_area_ptr_fifo2->queue_size = 0;
-        shared_area_ptr_fifo2->printed_numbers = 0;
-        shared_area_ptr_fifo2->process_turn = 5;
-
         for (int i = 0; i < 3; i++)
         {
             pthread_create(&threads[i], NULL, handle_threads_p7, (void *)shared_area_ptr_fifo2);
@@ -357,10 +305,13 @@ int main()
             pthread_join(threads[i], NULL);
         }
 
-        close(pipe01[0]);
-        close(pipe02[0]);
+        /* Finalizando processos e pipes */
         kill(process5, 9);
         kill(process6, 9);
+        close(pipe01[0]);
+        close(pipe02[0]);
+        close(pipe01[1]);
+        close(pipe02[1]);
         kill(process4, 9);
         for (int i = 0; i < 3; i++)
         {
@@ -377,6 +328,7 @@ int main()
         exit(0);
     }
 
+    /* Aguarda o termino da execução dos 7 processos */
     for (int i = 0; i < 7; i++)
     {
         wait(NULL);
@@ -399,7 +351,6 @@ void *handle_t1(void *ptr)
         sem_wait(&shared_area_ptr_fifo1->mutex2);
         if (ready_for_pickup == 1)
         {
-            sem_wait(&shared_area_ptr_fifo1->mutex1);
             if (shared_area_ptr_fifo1->queue_size > 0)
             {
                 int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
@@ -415,7 +366,6 @@ void *handle_t1(void *ptr)
                     shared_area_ptr_fifo1->ready_for_produce = 1;
                 }
             }
-            sem_post(&shared_area_ptr_fifo1->mutex1);
         }
         sem_post(&shared_area_ptr_fifo1->mutex2);
     }
@@ -431,7 +381,6 @@ void *handle_t2(void *ptr)
         sem_wait(&shared_area_ptr_fifo1->mutex2);
         if (ready_for_pickup == 1)
         {
-            sem_wait(&shared_area_ptr_fifo1->mutex1);
             if (shared_area_ptr_fifo1->queue_size > 0)
             {
                 int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
@@ -447,7 +396,6 @@ void *handle_t2(void *ptr)
                     shared_area_ptr_fifo1->ready_for_produce = 1;
                 }
             }
-            sem_post(&shared_area_ptr_fifo1->mutex1);
         }
         sem_post(&shared_area_ptr_fifo1->mutex2);
     }
