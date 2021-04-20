@@ -31,9 +31,7 @@ struct shared_area_f2
     int queue[QUEUESIZE];
     int rear;
     int front;
-    int process_turn;
-    int thread_turn;
-    pthread_t threads_ids[3];
+    int thread_turn; // 1=P5, 2=P6, 3,4,5=P7
     int bigger;
     int smaller;
     int process5_count;
@@ -41,9 +39,9 @@ struct shared_area_f2
     int printed_numbers;
 };
 
-void *handle_t1(void *ptr);
-void *handle_t2(void *ptr);
-void *handle_threads_p7(void *ptr);
+void *handle_thread_p4(void *ptr);
+void *handle_threads_p7_t2(void *ptr);
+void *handle_threads_p7_t3(void *ptr);
 int rand_interval(int a, int b);
 void signal_handler_consumers(int p);
 void signal_handler_produtores(int p);
@@ -132,7 +130,7 @@ int main()
     shared_area_ptr_fifo2->process6_count = 0;
     shared_area_ptr_fifo2->queue_size = 0;
     shared_area_ptr_fifo2->printed_numbers = 0;
-    shared_area_ptr_fifo2->process_turn = 5;
+    shared_area_ptr_fifo2->thread_turn = 2;
 
     /* Fim da inicialização de FIFO2 */
 
@@ -159,14 +157,35 @@ int main()
     else if (process4 == 0)
     {
         signal(SIGUSR1, signal_handler_consumers);
-        pthread_t threads[2];
+        pthread_t thread;
 
-        pthread_create(&threads[0], NULL, handle_t1, (void *)shared_area_ptr_fifo1);
-        pthread_create(&threads[1], NULL, handle_t2, (void *)shared_area_ptr_fifo1);
+        close(pipe01[0]);
+        close(pipe02[0]);
 
-        for (int i = 0; i < 2; i++)
+        pthread_create(&thread, NULL, handle_thread_p4, (void *)shared_area_ptr_fifo1);
+
+        for (;;)
         {
-            pthread_join(threads[i], NULL);
+            sem_wait(&shared_area_ptr_fifo1->mutex2);
+            if (ready_for_pickup == 1 && shared_area_ptr_fifo1->ready_for_produce == 0)
+            {
+                if (shared_area_ptr_fifo1->queue_size > 0)
+                {
+                    int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
+
+                    shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
+                    shared_area_ptr_fifo1->queue_size -= 1;                                        // Diminui o tamanho atual da fila
+
+                    write(pipe01[1], &res, sizeof(int));
+
+                    if (shared_area_ptr_fifo1->queue_size == 0)
+                    {
+                        ready_for_pickup = 0;
+                        shared_area_ptr_fifo1->ready_for_produce = 1;
+                    }
+                }
+            }
+            sem_post(&shared_area_ptr_fifo1->mutex2);
         }
 
         exit(0);
@@ -184,11 +203,13 @@ int main()
         if (produtores[i] == 0)
         {
             srand(time(NULL) + getpid());
+            close(pipe01[0]);
+            close(pipe02[0]);
+            close(pipe01[1]);
+            close(pipe02[1]);
 
             for (;;)
             {
-                if (process4 == 0)
-                    continue;
                 sem_wait((sem_t *)&shared_area_ptr_fifo1->mutex1);
                 if (shared_area_ptr_fifo1->queue_size < 10 && shared_area_ptr_fifo1->ready_for_produce == 1)
                 {
@@ -219,27 +240,30 @@ int main()
         int res;
         srand(time(NULL));
 
-        for (;;)
+        close(pipe02[0]);
+        close(pipe01[1]);
+        close(pipe02[1]);
+
+        while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
         {
-            if (shared_area_ptr_fifo2->process_turn == 5)
+            if (shared_area_ptr_fifo2->thread_turn == 1)
             {
                 if (shared_area_ptr_fifo2->queue_size == 10)
                 {
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
-                    shared_area_ptr_fifo2->process_turn = 7;
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
                 }
                 else if (shared_area_ptr_fifo2->queue_size < 10)
                 {
                     read(pipe01[0], &res, sizeof(int));
-                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res; // Adiciona na traseira da fila
-                    shared_area_ptr_fifo2->queue_size += 1; // Soma ao tamanho atual da fila
+                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
+                    shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
                     shared_area_ptr_fifo2->process5_count += 1;
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
-                    shared_area_ptr_fifo2->process_turn = 6;
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
                 }
             }
         }
+        exit(0);
     }
 
     process6 = fork();
@@ -254,28 +278,30 @@ int main()
         int res;
         srand(time(NULL));
 
-        for (;;)
+        close(pipe01[0]);
+        close(pipe01[1]);
+        close(pipe02[1]);
+
+        while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
         {
-            if (shared_area_ptr_fifo2->process_turn == 6)
+            if (shared_area_ptr_fifo2->thread_turn == 2)
             {
                 if (shared_area_ptr_fifo2->queue_size == 10)
                 {
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
-                    shared_area_ptr_fifo2->process_turn = 7;
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
                 }
                 if (shared_area_ptr_fifo2->queue_size < 10)
                 {
                     read(pipe02[0], &res, sizeof(int));
-                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res; // Adiciona na traseira da fila
-                    shared_area_ptr_fifo2->queue_size += 1; // Soma ao tamanho atual da fila
+                    shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
+                    shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
                     shared_area_ptr_fifo2->process6_count += 1;
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(0, 2);
-                    shared_area_ptr_fifo2->process_turn = 7;
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
                 }
             }
         }
-        return 0;
+        exit(0);
     }
 
     process7 = fork();
@@ -288,19 +314,62 @@ int main()
     else if (process7 == 0)
     {
         srand(time(NULL));
-        pthread_t threads[3];
+        pthread_t threads[2];
 
-        for (int i = 0; i < 3; i++)
+        pthread_create(&threads[0], NULL, handle_threads_p7_t2, (void *)shared_area_ptr_fifo2);
+        pthread_create(&threads[1], NULL, handle_threads_p7_t3, (void *)shared_area_ptr_fifo2);
+
+        for (;;)
         {
-            pthread_create(&threads[i], NULL, handle_threads_p7, (void *)shared_area_ptr_fifo2);
+            if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
+            {
+                break;
+            }
+            if (shared_area_ptr_fifo2->thread_turn == 3 && shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+            {
+                if (shared_area_ptr_fifo2->queue_size > 0)
+                {
+                    int random_number = shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->front]; // Pega o elemento no começo da fila
+
+                    shared_area_ptr_fifo2->front = (shared_area_ptr_fifo2->front + 1) % QUEUESIZE; // Aponta para o novo primeiro elemento da fila
+                    shared_area_ptr_fifo2->queue_size -= 1;                                        // Diminui um no tamanho atual da fila
+
+                    if (shared_area_ptr_fifo2->printed_numbers == 0) // Seta o primeiro elemento como maior e menor para comparar entre os outros elementos impressos.
+                    {
+                        shared_area_ptr_fifo2->bigger = random_number;
+                        shared_area_ptr_fifo2->smaller = random_number;
+                    }
+
+                    if (random_number > shared_area_ptr_fifo2->bigger)
+                    {
+                        shared_area_ptr_fifo2->bigger = random_number;
+                    }
+                    if (random_number < shared_area_ptr_fifo2->smaller)
+                    {
+                        shared_area_ptr_fifo2->smaller = random_number;
+                    }
+
+                    printedNumbers[shared_area_ptr_fifo2->printed_numbers] = random_number; // Para calculo posterior da moda.
+
+                    printf("Numero impresso: %d\n", random_number);
+                    fflush(stdout);
+                    shared_area_ptr_fifo2->printed_numbers += 1;
+
+                    if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
+                    {
+                        break;
+                    }
+
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
+                }
+                else if (shared_area_ptr_fifo2->queue_size == 0)
+                {
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
+                }
+            }
         }
 
-        for (int i = 0; i < 3; i++)
-        {
-            shared_area_ptr_fifo2->threads_ids[i] = threads[i];
-        }
-
-        for (int i = 0; i < 3; i++)
+        for(int i = 0; i < 2; i++)
         {
             pthread_join(threads[i], NULL);
         }
@@ -318,12 +387,17 @@ int main()
             kill(produtores[i], 9);
         }
 
+        int result_moda = moda(printedNumbers, ITERACTIONS);
+
+        execution_time = clock() - execution_time;
         printf("\n\n==========================================\n");
         printf("Maior valor: %d\n", shared_area_ptr_fifo2->bigger);
         printf("Menor valor: %d\n", shared_area_ptr_fifo2->smaller);
-        printf("Moda: %d\n", moda(printedNumbers, ITERACTIONS));
         printf("Valores processados por P5: %d\n", shared_area_ptr_fifo2->process5_count);
         printf("Valores processados por P6: %d\n", shared_area_ptr_fifo2->process6_count);
+        printf("Moda: %d\n", result_moda);
+        printf("Tempo de execucao: %lf segundos\n", ((double)execution_time) / CLOCKS_PER_SEC);
+        printf("==========================================\n");
 
         exit(0);
     }
@@ -334,14 +408,15 @@ int main()
         wait(NULL);
     }
 
-    execution_time = clock() - execution_time;
-    printf("Tempo de execucao: %lf segundos\n", ((double)execution_time) / CLOCKS_PER_SEC);
-    printf("==========================================\n");
+    close(pipe01[0]);
+    close(pipe02[0]);
+    close(pipe01[1]);
+    close(pipe02[1]);
 
     return 0;
 }
 
-void *handle_t1(void *ptr)
+void *handle_thread_p4(void *ptr)
 {
     struct shared_area *shared_area_ptr_fifo1;
     shared_area_ptr_fifo1 = ((struct shared_area *)ptr);
@@ -349,44 +424,15 @@ void *handle_t1(void *ptr)
     for (;;)
     {
         sem_wait(&shared_area_ptr_fifo1->mutex2);
-        if (ready_for_pickup == 1)
+        if (ready_for_pickup == 1 && shared_area_ptr_fifo1->ready_for_produce == 0)
         {
             if (shared_area_ptr_fifo1->queue_size > 0)
             {
                 int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
 
                 shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
-                shared_area_ptr_fifo1->queue_size -= 1; // Diminui o tamanho atual da fila
+                shared_area_ptr_fifo1->queue_size -= 1;                                        // Diminui o tamanho atual da fila
 
-                write(pipe01[1], &res, sizeof(int));
-
-                if (shared_area_ptr_fifo1->queue_size == 0)
-                {
-                    ready_for_pickup = 0;
-                    shared_area_ptr_fifo1->ready_for_produce = 1;
-                }
-            }
-        }
-        sem_post(&shared_area_ptr_fifo1->mutex2);
-    }
-}
-
-void *handle_t2(void *ptr)
-{
-    struct shared_area *shared_area_ptr_fifo1;
-    shared_area_ptr_fifo1 = ((struct shared_area *)ptr);
-
-    for (;;)
-    {
-        sem_wait(&shared_area_ptr_fifo1->mutex2);
-        if (ready_for_pickup == 1)
-        {
-            if (shared_area_ptr_fifo1->queue_size > 0)
-            {
-                int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
-
-                shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
-                shared_area_ptr_fifo1->queue_size -= 1; // Diminui o tamanho atual da fila
 
                 write(pipe02[1], &res, sizeof(int));
 
@@ -399,23 +445,28 @@ void *handle_t2(void *ptr)
         }
         sem_post(&shared_area_ptr_fifo1->mutex2);
     }
+    pthread_exit(NULL);
 }
 
-void *handle_threads_p7(void *ptr)
+void *handle_threads_p7_t2(void *ptr)
 {
     struct shared_area_f2 *shared_area_ptr_fifo2;
     shared_area_ptr_fifo2 = ((struct shared_area_f2 *)ptr);
 
-    while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+    for (;;)
     {
-        if (shared_area_ptr_fifo2->process_turn == 7)
+        if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
         {
-            if (shared_area_ptr_fifo2->queue_size > 0 && shared_area_ptr_fifo2->threads_ids[shared_area_ptr_fifo2->thread_turn] == pthread_self())
+            pthread_exit(NULL);
+        }
+        if (shared_area_ptr_fifo2->thread_turn == 4 && shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        {
+            if (shared_area_ptr_fifo2->queue_size > 0)
             {
                 int random_number = shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->front]; // Pega o elemento no começo da fila
 
                 shared_area_ptr_fifo2->front = (shared_area_ptr_fifo2->front + 1) % QUEUESIZE; // Aponta para o novo primeiro elemento da fila
-                shared_area_ptr_fifo2->queue_size -= 1; // Diminui um no tamanho atual da fila
+                shared_area_ptr_fifo2->queue_size -= 1;                                        // Diminui um no tamanho atual da fila
 
                 if (shared_area_ptr_fifo2->printed_numbers == 0) // Seta o primeiro elemento como maior e menor para comparar entre os outros elementos impressos.
                 {
@@ -440,34 +491,73 @@ void *handle_threads_p7(void *ptr)
 
                 if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
                 {
-                    break;
+                    pthread_exit(NULL);
                 }
 
-                int random_process = rand_interval(1, 10);
-                if (random_process < 6)
-                {
-                    shared_area_ptr_fifo2->process_turn = 5;
-                }
-                else
-                {
-                    shared_area_ptr_fifo2->process_turn = 6;
-                }
+                shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
             }
             else if (shared_area_ptr_fifo2->queue_size == 0)
             {
-                int random_process = rand_interval(1, 10);
-                if (random_process < 6)
-                {
-                    shared_area_ptr_fifo2->process_turn = 5;
-                }
-                else
-                {
-                    shared_area_ptr_fifo2->process_turn = 6;
-                }
+                shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
             }
         }
     }
-    pthread_exit(NULL);
+}
+
+void *handle_threads_p7_t3(void *ptr)
+{
+    struct shared_area_f2 *shared_area_ptr_fifo2;
+    shared_area_ptr_fifo2 = ((struct shared_area_f2 *)ptr);
+
+    for (;;)
+    {
+        if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
+        {
+            pthread_exit(NULL);
+        }
+        if (shared_area_ptr_fifo2->thread_turn == 5 && shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        {
+            if (shared_area_ptr_fifo2->queue_size > 0)
+            {
+                int random_number = shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->front]; // Pega o elemento no começo da fila
+
+                shared_area_ptr_fifo2->front = (shared_area_ptr_fifo2->front + 1) % QUEUESIZE; // Aponta para o novo primeiro elemento da fila
+                shared_area_ptr_fifo2->queue_size -= 1;                                        // Diminui um no tamanho atual da fila
+
+                if (shared_area_ptr_fifo2->printed_numbers == 0) // Seta o primeiro elemento como maior e menor para comparar entre os outros elementos impressos.
+                {
+                    shared_area_ptr_fifo2->bigger = random_number;
+                    shared_area_ptr_fifo2->smaller = random_number;
+                }
+
+                if (random_number > shared_area_ptr_fifo2->bigger)
+                {
+                    shared_area_ptr_fifo2->bigger = random_number;
+                }
+                if (random_number < shared_area_ptr_fifo2->smaller)
+                {
+                    shared_area_ptr_fifo2->smaller = random_number;
+                }
+
+                printedNumbers[shared_area_ptr_fifo2->printed_numbers] = random_number; // Para calculo posterior da moda.
+
+                printf("Numero impresso: %d\n", random_number);
+                fflush(stdout);
+                shared_area_ptr_fifo2->printed_numbers += 1;
+
+                if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
+                {
+                    pthread_exit(NULL);
+                }
+
+                shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
+            }
+            else if (shared_area_ptr_fifo2->queue_size == 0)
+            {
+                shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
+            }
+        }
+    }
 }
 
 void signal_handler_consumers(int p)
