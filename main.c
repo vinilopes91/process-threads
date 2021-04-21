@@ -576,11 +576,11 @@ int rand_interval(int a, int b)
 
 int moda(int frequency_array[], int size)
 {
-    int result = frequency_array[0];
+    int result = 0;
 
     for (int i = 0; i < size; i++)
     {
-        if (frequency_array[i] > result)
+        if (frequency_array[i] > frequency_array[result])
         {
             result = i;
         }
