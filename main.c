@@ -259,7 +259,7 @@ int main()
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
                 }
             }
         }
@@ -297,7 +297,7 @@ int main()
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
                 }
             }
         }
