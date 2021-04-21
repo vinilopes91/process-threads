@@ -244,7 +244,7 @@ int main()
         close(pipe01[1]);
         close(pipe02[1]);
 
-        while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        while (1)
         {
             if (shared_area_ptr_fifo2->thread_turn == 1)
             {
@@ -252,14 +252,14 @@ int main()
                 {
                     shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
                 }
-                else if (shared_area_ptr_fifo2->queue_size < 10)
+                else
                 {
                     read(pipe01[0], &res, sizeof(int));
                     shared_area_ptr_fifo2->process5_count += 1;
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
                 }
             }
         }
@@ -282,7 +282,7 @@ int main()
         close(pipe01[1]);
         close(pipe02[1]);
 
-        while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        while (1)
         {
             if (shared_area_ptr_fifo2->thread_turn == 2)
             {
@@ -290,14 +290,14 @@ int main()
                 {
                     shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
                 }
-                if (shared_area_ptr_fifo2->queue_size < 10)
+                else
                 {
                     read(pipe02[0], &res, sizeof(int));
                     shared_area_ptr_fifo2->process6_count += 1;
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(3, 5);
+                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
                 }
             }
         }
@@ -330,7 +330,7 @@ int main()
             {
                 break;
             }
-            if (shared_area_ptr_fifo2->thread_turn == 3 && shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+            if (shared_area_ptr_fifo2->thread_turn == 3)
             {
                 if (shared_area_ptr_fifo2->queue_size > 0)
                 {
@@ -367,16 +367,7 @@ int main()
 
                     shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
                 }
-                else if (shared_area_ptr_fifo2->queue_size == 0)
-                {
-                    shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
-                }
             }
-        }
-
-        for (int i = 0; i < 2; i++)
-        {
-            pthread_join(threads[i], NULL);
         }
 
         /* Finalizando processos e pipes */
@@ -412,6 +403,9 @@ int main()
     {
         wait(NULL);
     }
+
+    sem_destroy(&shared_area_ptr_fifo1->mutex1);
+    sem_destroy(&shared_area_ptr_fifo1->mutex2);
 
     close(pipe01[0]);
     close(pipe02[0]);
@@ -461,9 +455,9 @@ void *handle_threads_p7_t2(void *ptr)
     {
         if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
         {
-            pthread_exit(NULL);
+            break;
         }
-        if (shared_area_ptr_fifo2->thread_turn == 4 && shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        if (shared_area_ptr_fifo2->thread_turn == 4)
         {
             if (shared_area_ptr_fifo2->queue_size > 0)
             {
@@ -495,17 +489,14 @@ void *handle_threads_p7_t2(void *ptr)
 
                 if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
                 {
-                    pthread_exit(NULL);
+                    break;
                 }
 
                 shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
             }
-            else if (shared_area_ptr_fifo2->queue_size == 0)
-            {
-                shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
-            }
         }
     }
+    pthread_exit(NULL);
 }
 
 void *handle_threads_p7_t3(void *ptr)
@@ -517,9 +508,9 @@ void *handle_threads_p7_t3(void *ptr)
     {
         if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
         {
-            pthread_exit(NULL);
+            break;
         }
-        if (shared_area_ptr_fifo2->thread_turn == 5 && shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
+        if (shared_area_ptr_fifo2->thread_turn == 5)
         {
             if (shared_area_ptr_fifo2->queue_size > 0)
             {
@@ -551,17 +542,14 @@ void *handle_threads_p7_t3(void *ptr)
 
                 if (shared_area_ptr_fifo2->printed_numbers == ITERACTIONS)
                 {
-                    pthread_exit(NULL);
+                    break;
                 }
 
                 shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
             }
-            else if (shared_area_ptr_fifo2->queue_size == 0)
-            {
-                shared_area_ptr_fifo2->thread_turn = rand_interval(1, 2);
-            }
         }
     }
+    pthread_exit(NULL);
 }
 
 void signal_handler_consumers(int p)

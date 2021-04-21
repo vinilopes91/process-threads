@@ -11,7 +11,7 @@
 				"-Wall",
 				"${file}",
 				"-o",
-				"${workspaceFolder}/${fileBasenameNoExtension}"
+				"${workspaceFolder}/${fileBasenameNoExtension}.exe"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
