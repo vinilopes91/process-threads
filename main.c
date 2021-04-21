@@ -45,10 +45,10 @@ void *handle_threads_p7_t3(void *ptr);
 int rand_interval(int a, int b);
 void signal_handler_consumers(int p);
 void signal_handler_produtores(int p);
-int moda(int arr[], int size);
+int moda(int frequency_array[], int size);
 
 int ready_for_pickup = 0;
-int printedNumbers[ITERACTIONS];
+int frequency_printed_numbers[MAXNUMBER + 1];
 int pipe01[2];
 int pipe02[2];
 
@@ -246,8 +246,6 @@ int main()
 
         while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
         {
-            read(pipe01[0], &res, sizeof(int));
-            shared_area_ptr_fifo2->process5_count += 1;
             if (shared_area_ptr_fifo2->thread_turn == 1)
             {
                 if (shared_area_ptr_fifo2->queue_size == 10)
@@ -256,6 +254,8 @@ int main()
                 }
                 else if (shared_area_ptr_fifo2->queue_size < 10)
                 {
+                    read(pipe01[0], &res, sizeof(int));
+                    shared_area_ptr_fifo2->process5_count += 1;
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
@@ -284,8 +284,6 @@ int main()
 
         while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
         {
-            read(pipe02[0], &res, sizeof(int));
-            shared_area_ptr_fifo2->process6_count += 1;
             if (shared_area_ptr_fifo2->thread_turn == 2)
             {
                 if (shared_area_ptr_fifo2->queue_size == 10)
@@ -294,6 +292,8 @@ int main()
                 }
                 if (shared_area_ptr_fifo2->queue_size < 10)
                 {
+                    read(pipe02[0], &res, sizeof(int));
+                    shared_area_ptr_fifo2->process6_count += 1;
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
@@ -315,6 +315,11 @@ int main()
     {
         srand(time(NULL));
         pthread_t threads[2];
+
+        for (int i = 0; i < MAXNUMBER + 1; i++)
+        {
+            frequency_printed_numbers[i] = 0; // preenche com 0 o array de frequencia.
+        }
 
         pthread_create(&threads[0], NULL, handle_threads_p7_t2, (void *)shared_area_ptr_fifo2);
         pthread_create(&threads[1], NULL, handle_threads_p7_t3, (void *)shared_area_ptr_fifo2);
@@ -349,7 +354,7 @@ int main()
                         shared_area_ptr_fifo2->smaller = random_number;
                     }
 
-                    printedNumbers[shared_area_ptr_fifo2->printed_numbers] = random_number; // Para calculo posterior da moda.
+                    frequency_printed_numbers[random_number]++; // Para calculo posterior da moda.
 
                     printf("Numero impresso: %d\n", random_number);
                     fflush(stdout);
@@ -369,7 +374,7 @@ int main()
             }
         }
 
-        for(int i = 0; i < 2; i++)
+        for (int i = 0; i < 2; i++)
         {
             pthread_join(threads[i], NULL);
         }
@@ -387,7 +392,7 @@ int main()
             kill(produtores[i], 9);
         }
 
-        int result_moda = moda(printedNumbers, ITERACTIONS);
+        int result_moda = moda(frequency_printed_numbers, MAXNUMBER + 1);
 
         execution_time = clock() - execution_time;
         printf("\n\n==========================================\n");
@@ -432,7 +437,6 @@ void *handle_thread_p4(void *ptr)
 
                 shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
                 shared_area_ptr_fifo1->queue_size -= 1;                                        // Diminui o tamanho atual da fila
-
 
                 write(pipe02[1], &res, sizeof(int));
 
@@ -483,7 +487,7 @@ void *handle_threads_p7_t2(void *ptr)
                     shared_area_ptr_fifo2->smaller = random_number;
                 }
 
-                printedNumbers[shared_area_ptr_fifo2->printed_numbers] = random_number; // Para calculo posterior da moda.
+                frequency_printed_numbers[random_number]++; // Para calculo posterior da moda.
 
                 printf("Numero impresso: %d\n", random_number);
                 fflush(stdout);
@@ -539,7 +543,7 @@ void *handle_threads_p7_t3(void *ptr)
                     shared_area_ptr_fifo2->smaller = random_number;
                 }
 
-                printedNumbers[shared_area_ptr_fifo2->printed_numbers] = random_number; // Para calculo posterior da moda.
+                frequency_printed_numbers[random_number]++; // Para calculo posterior da moda.
 
                 printf("Numero impresso: %d\n", random_number);
                 fflush(stdout);
@@ -570,30 +574,17 @@ int rand_interval(int a, int b)
     return rand() % (b - a + 1) + a;
 }
 
-int moda(int arr[], int size)
+int moda(int frequency_array[], int size)
 {
-    int count = 1;
-    int tempCount;
-    int temp = 0;
+    int result = frequency_array[0];
 
-    int result = arr[0]; // Começa pelo primeiro elemento
-
-    for (int i = 0; i < (size - 1); i++)
+    for (int i = 0; i < size; i++)
     {
-        temp = arr[i]; // Guarda o elemento que esta iterando
-        tempCount = 1;
-        for (int j = 1; j < size; j++) // Varre o array em busca do elemento temp
+        if (frequency_array[i] > result)
         {
-            if (temp == arr[j])
-            {
-                tempCount++;
-            }
-        }
-        if (tempCount > count) // Se o novo elemento tiver mais ocorrencias troca
-        {
-            result = temp;
-            count = tempCount;
+            result = i;
         }
     }
+
     return result;
 }
