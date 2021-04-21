@@ -246,6 +246,8 @@ int main()
 
         while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
         {
+            read(pipe01[0], &res, sizeof(int));
+            shared_area_ptr_fifo2->process5_count += 1;
             if (shared_area_ptr_fifo2->thread_turn == 1)
             {
                 if (shared_area_ptr_fifo2->queue_size == 10)
@@ -254,11 +256,9 @@ int main()
                 }
                 else if (shared_area_ptr_fifo2->queue_size < 10)
                 {
-                    read(pipe01[0], &res, sizeof(int));
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
-                    shared_area_ptr_fifo2->process5_count += 1;
                     shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
                 }
             }
@@ -284,6 +284,8 @@ int main()
 
         while (shared_area_ptr_fifo2->printed_numbers < ITERACTIONS)
         {
+            read(pipe02[0], &res, sizeof(int));
+            shared_area_ptr_fifo2->process6_count += 1;
             if (shared_area_ptr_fifo2->thread_turn == 2)
             {
                 if (shared_area_ptr_fifo2->queue_size == 10)
@@ -292,11 +294,9 @@ int main()
                 }
                 if (shared_area_ptr_fifo2->queue_size < 10)
                 {
-                    read(pipe02[0], &res, sizeof(int));
                     shared_area_ptr_fifo2->queue[shared_area_ptr_fifo2->rear] = res;             // Adiciona na traseira da fila
                     shared_area_ptr_fifo2->queue_size += 1;                                      // Soma ao tamanho atual da fila
                     shared_area_ptr_fifo2->rear = (shared_area_ptr_fifo2->rear + 1) % QUEUESIZE; // Recalcula o valor da traseira
-                    shared_area_ptr_fifo2->process6_count += 1;
                     shared_area_ptr_fifo2->thread_turn = rand_interval(1, 5);
                 }
             }
