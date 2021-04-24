@@ -158,6 +158,7 @@ int main()
     {
         signal(SIGUSR1, signal_handler_consumers);
         pthread_t thread;
+        int res;
 
         close(pipe01[0]);
         close(pipe02[0]);
@@ -166,17 +167,17 @@ int main()
 
         for (;;)
         {
+            res = 0;
             sem_wait(&shared_area_ptr_fifo1->mutex2);
             if (ready_for_pickup == 1 && shared_area_ptr_fifo1->ready_for_produce == 0)
             {
                 if (shared_area_ptr_fifo1->queue_size > 0)
                 {
-                    int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
+                    res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
 
                     shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
                     shared_area_ptr_fifo1->queue_size -= 1;                                        // Diminui o tamanho atual da fila
 
-                    write(pipe01[1], &res, sizeof(int));
 
                     if (shared_area_ptr_fifo1->queue_size == 0)
                     {
@@ -186,6 +187,10 @@ int main()
                 }
             }
             sem_post(&shared_area_ptr_fifo1->mutex2);
+            if (res != 0)
+            {
+                write(pipe01[1], &res, sizeof(int));
+            }
         }
 
         exit(0);
@@ -419,20 +424,20 @@ void *handle_thread_p4(void *ptr)
 {
     struct shared_area *shared_area_ptr_fifo1;
     shared_area_ptr_fifo1 = ((struct shared_area *)ptr);
+    int res;
 
     for (;;)
     {
+        res = 0;
         sem_wait(&shared_area_ptr_fifo1->mutex2);
         if (ready_for_pickup == 1 && shared_area_ptr_fifo1->ready_for_produce == 0)
         {
             if (shared_area_ptr_fifo1->queue_size > 0)
             {
-                int res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
+                res = shared_area_ptr_fifo1->queue[shared_area_ptr_fifo1->front]; // Pega o primeiro da fila
 
                 shared_area_ptr_fifo1->front = (shared_area_ptr_fifo1->front + 1) % QUEUESIZE; // Aponta o front para o próximo elemento
                 shared_area_ptr_fifo1->queue_size -= 1;                                        // Diminui o tamanho atual da fila
-
-                write(pipe02[1], &res, sizeof(int));
 
                 if (shared_area_ptr_fifo1->queue_size == 0)
                 {
@@ -442,6 +447,10 @@ void *handle_thread_p4(void *ptr)
             }
         }
         sem_post(&shared_area_ptr_fifo1->mutex2);
+        if (res != 0)
+        {
+            write(pipe02[1], &res, sizeof(int));
+        }
     }
     pthread_exit(NULL);
 }
